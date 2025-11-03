@@ -1,0 +1,20 @@
+{
+  "name": "observability-sample",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Express + static UI with observability: request logging, health checks, error boundaries, and Sentry placeholders.",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "worker": "node worker/worker.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "uuid": "^9.0.1"
+  }
+}
