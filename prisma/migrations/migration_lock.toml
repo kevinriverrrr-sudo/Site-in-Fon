@@ -1,0 +1,4 @@
+# Prisma Migrate lockfile
+# This file is automatically created and updated by Prisma Migrate.
+# It keeps track of your migration provider.
+provider = "postgresql"
