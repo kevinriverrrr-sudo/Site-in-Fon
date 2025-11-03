@@ -1,0 +1,25 @@
+{
+  "name": "deployment-docs-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal app + worker to support deployment docs, Dockerfile, and env validation.",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=8"
+  },
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "worker": "node src/worker.js",
+    "seed": "node seeds/seed-admin.js",
+    "lint": "echo 'No linter configured'"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "envalid": "^8.0.0",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "nodemailer": "^6.9.15",
+    "pg": "^8.12.0"
+  }
+}
