@@ -1,0 +1,22 @@
+{
+  "name": "background-removal-queue",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Background removal queue with BullMQ and Upstash Redis, with sync fallback",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "worker": "node workers/backgroundRemovalWorker.js",
+    "dev": "NODE_ENV=development node src/server.js"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.29.3",
+    "better-sqlite3": "^9.4.5",
+    "bullmq": "^5.13.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
