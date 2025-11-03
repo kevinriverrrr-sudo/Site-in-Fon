@@ -1,0 +1,44 @@
+<%- include('../partials/admin_header', { active: '/admin/jobs', user, warnings }) %>
+<h2>Jobs Monitor</h2>
+<form class="filter-bar" method="get" action="/admin/jobs">
+  <select name="status">
+    <option value="">All statuses</option>
+    <option value="PENDING" <%= filter.status==='PENDING'?'selected':'' %>>Pending</option>
+    <option value="RUNNING" <%= filter.status==='RUNNING'?'selected':'' %>>Running</option>
+    <option value="COMPLETED" <%= filter.status==='COMPLETED'?'selected':'' %>>Completed</option>
+    <option value="FAILED" <%= filter.status==='FAILED'?'selected':'' %>>Failed</option>
+  </select>
+  <button class="btn">Filter</button>
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>User</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th>Updated</th>
+      <th>Failure Reason</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% jobs.forEach(j => { %>
+      <tr data-id="<%= j.id %>">
+        <td><%= j.id %></td>
+        <td><%= j.email %></td>
+        <td data-field="status" class="status-<%= j.status %>"><%= j.status %></td>
+        <td><%= new Date(j.createdAt).toLocaleString() %></td>
+        <td><%= new Date(j.updatedAt).toLocaleString() %></td>
+        <td><%= j.failureReason || '' %></td>
+        <td>
+          <% if (j.status === 'FAILED') { %>
+            <button class="btn small" data-action="retry">Retry</button>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+<%- include('../partials/admin_footer') %>

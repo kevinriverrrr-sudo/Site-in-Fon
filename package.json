@@ -1,0 +1,16 @@
+{
+  "name": "admin-panel-app",
+  "version": "1.0.0",
+  "description": "Simple admin panel with users, jobs monitor, and system status",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.11",
+    "ejs": "^3.1.9",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "sqlite3": "^5.1.7"
+  }
+}

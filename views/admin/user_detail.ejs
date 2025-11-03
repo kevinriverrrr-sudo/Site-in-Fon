@@ -1,0 +1,59 @@
+<%- include('../partials/admin_header', { active: '/admin/users', user, warnings }) %>
+<h2>User #<%= u.id %> - <%= u.email %></h2>
+<div style="display:flex; gap:20px;">
+  <div class="card" style="flex:1;">
+    <div><strong>Role:</strong> <%= u.role %></div>
+    <div><strong>Status:</strong> <%= u.status %></div>
+    <div><strong>Created:</strong> <%= new Date(u.createdAt).toLocaleString() %></div>
+    <div><strong>Daily Limit:</strong> <%= u.dailyLimit %></div>
+    <div><strong>Used Today:</strong> <%= u.usedToday %></div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px;">Recent Usage Logs</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Action</th>
+      <th>Amount</th>
+      <th>Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% usageLogs.forEach(l => { %>
+      <tr>
+        <td><%= l.id %></td>
+        <td><%= l.action %></td>
+        <td><%= l.amount %></td>
+        <td><%= new Date(l.createdAt).toLocaleString() %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<h3 style="margin-top:20px;">Recent Image Jobs</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th>Updated</th>
+      <th>Failure Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% jobs.forEach(j => { %>
+      <tr>
+        <td><%= j.id %></td>
+        <td class="status-<%= j.status %>"><%= j.status %></td>
+        <td><%= new Date(j.createdAt).toLocaleString() %></td>
+        <td><%= new Date(j.updatedAt).toLocaleString() %></td>
+        <td><%= j.failureReason || '' %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<%- include('../partials/admin_footer') %>
