@@ -1,0 +1,35 @@
+{
+  "name": "rate-limiter-demo",
+  "version": "1.0.0",
+  "description": "Redis-based sliding window and per-user daily rate limiter with middleware, logging, and tests.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "jest --runInBand",
+    "start": "node src/index.js"
+  },
+  "keywords": [
+    "rate-limit",
+    "redis",
+    "sliding-window",
+    "middleware",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverage": true,
+    "collectCoverageFrom": ["src/**/*.js", "!src/index.js"]
+  }
+}
