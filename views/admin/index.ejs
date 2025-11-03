@@ -1,0 +1,23 @@
+<%- include('../partials/admin_header', { active: '/admin', user, warnings }) %>
+<div class="cards">
+  <div class="card">
+    <div>Total users</div>
+    <div class="stat"><%= stats.totalUsers %></div>
+  </div>
+  <div class="card">
+    <div>Jobs today</div>
+    <div class="stat"><%= stats.jobsToday %></div>
+  </div>
+  <div class="card">
+    <div>Failure rate today</div>
+    <div class="stat"><%= stats.failureRate %>%</div>
+  </div>
+</div>
+
+<div style="margin-top:20px;">
+  <form method="post" action="/jobs/create">
+    <button class="btn primary">Create Test Job</button>
+    <span style="color:#6b7280; margin-left:8px;">(Creates a job for the current user session)</span>
+  </form>
+</div>
+<%- include('../partials/admin_footer') %>
