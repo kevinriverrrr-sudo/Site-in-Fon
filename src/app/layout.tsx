@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { getDictionary } from "@/lib/i18n";
+
+const dict = getDictionary();
 
 export const metadata: Metadata = {
-  title: "Next.js приложение",
-  description: "Современное веб-приложение на Next.js 14",
+  title: dict.app.title,
+  description: dict.app.description,
   icons: {
     icon: "/favicon.ico",
   },
