@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Observability Sample UI</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; max-width: 720px; }
+    .error { background: #fdecea; color: #611a15; padding: 1rem; border-radius: 6px; border: 1px solid #f5c2c0; }
+    button { cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #ccc; background: #f7f7f7; }
+    button.primary { background: #2563eb; border-color: #1d4ed8; color: white; }
+    .meta { color: #555; font-size: 0.9rem; }
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+</head>
+<body>
+  <h1>Observability Demo</h1>
+  <p class="meta">Try the error boundary and API calls. Open the browser devtools network tab to see requestId propagation and structured API responses.</p>
+
+  <div id="root"></div>
+
+  <script>
+    const e = React.createElement;
+
+    function ErrorBoundary(props) {
+      const [error, setError] = React.useState(null);
+      const [retryCount, setRetryCount] = React.useState(0);
+
+      const reset = () => { setError(null); setRetryCount(c => c + 1); };
+
+      const child = React.useMemo(() => {
+        if (error) return null;
+        return React.cloneElement(props.children, { key: retryCount, onError: setError });
+      }, [error, props.children, retryCount]);
+
+      if (error) {
+        return e('div', { className: 'card error' },
+          e('h3', null, 'Something went wrong'),
+          e('p', null, error.message || String(error)),
+          e('div', null,
+            e('button', { className: 'primary', onClick: reset }, 'Retry')
+          )
+        );
+      }
+      return child;
+    }
+
+    function ApiDemo(props) {
+      const [echo, setEcho] = React.useState(null);
+      const [requestId, setRequestId] = React.useState(null);
+      const [busy, setBusy] = React.useState(false);
+
+      async function callEcho(msg) {
+        setBusy(true);
+        try {
+          const res = await fetch('/api/echo', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+          });
+          const json = await res.json();
+          setEcho(json.data.echo);
+          setRequestId(json.requestId);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      function throwClientError() {
+        throw new Error('Client-side error triggered');
+      }
+
+      React.useEffect(() => { callEcho('hello'); }, []);
+
+      return e('div', { className: 'card' },
+        e('h3', null, 'UI + API Observability'),
+        e('p', null, 'Echo from API:'),
+        e('pre', null, JSON.stringify(echo, null, 2)),
+        e('p', { className: 'meta' }, 'Last requestId: ', requestId || 'n/a'),
+        e('div', { style: { display: 'flex', gap: 8 } },
+          e('button', { onClick: () => callEcho('clicked'), disabled: busy }, busy ? 'Calling...' : 'Call API'),
+          e('button', { onClick: () => fetch('/api/error').then(r => r.json()).then(j => alert('API error: ' + (j.error && j.error.message))) }, 'Trigger API Error'),
+          e('button', { onClick: throwClientError }, 'Trigger UI Error')
+        )
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(e(ErrorBoundary, null, e(ApiDemo)));
+  </script>
+</body>
+</html>
