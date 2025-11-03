@@ -1,0 +1,21 @@
+# Node
+node_modules
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Build / cache
+.next
+out
+dist
+.cache
+.turbo
+coverage
+
+# Prisma
+prisma/dev.db
+
+# OS
+.DS_Store
