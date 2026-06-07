@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Тень в корпусе — 3D Horror</title>
+  <style>
+    :root { color-scheme: dark; --blood:#b31625; --fog:#05070b; --paper:#d9d0bb; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#000; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
+    canvas { display:block; width:100vw; height:100vh; image-rendering:auto; cursor:crosshair; background:#030407; }
+    .overlay { position:fixed; inset:0; pointer-events:none; color:white; text-shadow:0 2px 12px #000; }
+    .vignette { background: radial-gradient(circle at 50% 50%, transparent 33%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.88) 100%); mix-blend-mode:multiply; }
+    .noise { opacity:.055; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.75'/%3E%3C/svg%3E"); }
+    .hud { position:fixed; inset:auto 20px 20px 20px; display:grid; grid-template-columns: 1fr auto; gap:18px; align-items:end; pointer-events:none; }
+    .bars { width:min(440px, 58vw); display:grid; gap:8px; }
+    .bar { height:10px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.45); border-radius:999px; overflow:hidden; box-shadow:0 0 20px #000 inset; }
+    .bar > i { display:block; height:100%; width:100%; background:linear-gradient(90deg,#4973ff,#bad0ff); box-shadow:0 0 16px currentColor; }
+    .bar.health > i { background:linear-gradient(90deg,#5a0009,var(--blood)); }
+    .bar.stamina > i { background:linear-gradient(90deg,#0d5f31,#61e89c); }
+    .bar.battery > i { background:linear-gradient(90deg,#8b6d00,#ffe67a); }
+    .stats { justify-self:end; text-align:right; font-size:14px; line-height:1.7; letter-spacing:.04em; background:rgba(0,0,0,.38); padding:10px 13px; border:1px solid rgba(255,255,255,.16); border-radius:12px; backdrop-filter:blur(8px); }
+    .center { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:14px; height:14px; border:1px solid rgba(255,255,255,.75); border-radius:50%; box-shadow:0 0 18px rgba(255,255,255,.35); }
+    .center:after { content:""; position:absolute; left:50%; top:50%; width:2px; height:2px; transform:translate(-50%,-50%); background:#fff; border-radius:50%; }
+    .prompt { position:fixed; left:50%; bottom:88px; transform:translateX(-50%); color:#f4ead2; font-size:16px; letter-spacing:.04em; background:rgba(0,0,0,.52); border:1px solid rgba(255,255,255,.18); padding:10px 16px; border-radius:999px; opacity:0; transition:.18s; }
+    .prompt.show { opacity:1; }
+    .note { position:fixed; top:22px; left:50%; transform:translateX(-50%); max-width:min(760px, calc(100vw - 32px)); color:#f7e7c3; background:rgba(10,6,3,.72); border:1px solid rgba(255,229,168,.27); border-radius:14px; padding:14px 18px; font-size:15px; line-height:1.45; opacity:0; transition:.25s; }
+    .note.show { opacity:1; }
+    .start, .end { position:fixed; inset:0; display:grid; place-items:center; background:radial-gradient(circle at 50% 40%, rgba(83,0,0,.18), rgba(0,0,0,.94) 62%, #000 100%); color:white; z-index:10; }
+    .panel { width:min(820px, calc(100vw - 34px)); padding:34px; border:1px solid rgba(255,255,255,.16); border-radius:22px; background:linear-gradient(180deg, rgba(25,29,38,.78), rgba(3,4,7,.86)); box-shadow:0 22px 90px #000, inset 0 0 60px rgba(179,22,37,.07); }
+    h1 { margin:0 0 10px; font-size:clamp(34px, 6vw, 72px); line-height:.9; letter-spacing:-.06em; }
+    h1 span { color:#ff233d; text-shadow:0 0 28px rgba(255,35,61,.5); }
+    p { color:#cfc9c1; font-size:16px; line-height:1.6; }
+    .cols { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:18px; margin:22px 0; }
+    .card { border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px; background:rgba(0,0,0,.23); color:#ddd; }
+    kbd { display:inline-block; min-width:25px; padding:3px 7px; margin:2px; border-radius:6px; border:1px solid rgba(255,255,255,.28); background:#10131a; color:#fff; box-shadow:inset 0 -2px 0 rgba(255,255,255,.08); text-align:center; }
+    button { pointer-events:auto; border:0; color:white; background:linear-gradient(135deg,#7a0715,#d51d33); padding:14px 22px; border-radius:999px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; box-shadow:0 0 30px rgba(213,29,51,.32); }
+    button:hover { filter:brightness(1.15); transform:translateY(-1px); }
+    .end { display:none; text-align:center; }
+    .jumpscare { position:fixed; inset:0; display:none; z-index:8; background:#000; place-items:center; }
+    .face { width:min(78vmin, 700px); height:min(78vmin, 700px); border-radius:48% 52% 44% 56%; background:radial-gradient(circle at 38% 38%, #fff 0 2%, transparent 3%), radial-gradient(circle at 62% 38%, #fff 0 2%, transparent 3%), radial-gradient(ellipse at 50% 66%, #070000 0 16%, transparent 17%), radial-gradient(circle at 50% 45%, #3b0005, #070000 68%); filter:contrast(1.5); animation:shake .08s infinite; box-shadow:0 0 90px #b31625; }
+    @keyframes shake { from { transform:translate(-9px,4px) scale(1.03) rotate(-1deg);} to { transform:translate(8px,-6px) scale(1.08) rotate(1deg);} }
+    @media (max-width:720px){ .cols{grid-template-columns:1fr}.hud{grid-template-columns:1fr}.stats{justify-self:start;text-align:left}.bars{width:calc(100vw - 40px)} }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="overlay vignette"></div><div class="overlay noise"></div><div class="center"></div>
+  <div id="note" class="note"></div><div id="prompt" class="prompt"></div>
+  <div class="hud">
+    <div class="bars">
+      <div class="bar health"><i id="health"></i></div>
+      <div class="bar stamina"><i id="stamina"></i></div>
+      <div class="bar battery"><i id="battery"></i></div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div id="jumpscare" class="jumpscare"><div class="face"></div></div>
+  <section id="start" class="start">
+    <div class="panel">
+      <h1>Тень в <span>корпусе</span></h1>
+      <p>Ночная смена в заброшенном исследовательском корпусе закончилась сиреной. Двери заперты, генератор мёртв, а в вентиляции ходит то, что помнит каждый твой шаг.</p>
+      <div class="cols">
+        <div class="card"><b>Цель:</b><br>найди 3 предохранителя, вставь их в щиток генератора, найди ключ выхода и открой главные двери.</div>
+        <div class="card"><b>Управление:</b><br><kbd>WASD</kbd> ходьба, <kbd>Shift</kbd> бег, <kbd>Mouse</kbd> обзор, <kbd>E</kbd> взаимодействие, <kbd>F</kbd> фонарь, <kbd>M</kbd> карта.</div>
+      </div>
+      <p>Монстр слышит бег и открытые двери. Прячься за стенами, закрывай двери, экономь батарею. Для лучшего эффекта включи звук.</p>
+      <button id="startBtn">Войти в корпус</button>
+    </div>
+  </section>
+  <section id="end" class="end"><div class="panel"><h1 id="endTitle"></h1><p id="endText"></p><button onclick="location.reload()">Играть снова</button></div></section>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const promptEl = document.getElementById('prompt');
+  const noteEl = document.getElementById('note');
+  const statsEl = document.getElementById('stats');
+  const healthEl = document.getElementById('health');
+  const staminaEl = document.getElementById('stamina');
+  const batteryEl = document.getElementById('battery');
+  const startEl = document.getElementById('start');
+  const endEl = document.getElementById('end');
+  const jumpEl = document.getElementById('jumpscare');
+  const W = 24, H = 18, TILE = 1;
+  const raw = [
+    '########################',
+    '#S....#.....#....#.....#',
+    '#.....#.....D....#..F..#',
+    '#..B..D.....#....D.....#',
+    '#.....#.....#....#.....#',
+    '###D####D######D####D###',
+    '#......#......#........#',
+    '#..F...#..M...#..K.....#',
+    '#......D......D........#',
+    '####D##########D########',
+    '#.....#.....#.........E#',
+    '#.....D..G..#..........#',
+    '#..N..#.....D..........#',
+    '#.....####D#########D###',
+    '#........#.....#.......#',
+    '#..F.....D.....D.......#',
+    '#........#.....#.......#',
+    '########################'
+  ];
+  const map = raw.map(r => r.split('').map(c => c === '#' ? 1 : 0));
+  const doors = [], items = [], decals = [];
+  const player = { x:2.5, y:2.3, a:0, hp:100, stamina:100, battery:100, fuses:0, hasKey:false, generator:false, dead:false, won:false };
+  const monster = { x:11.5, y:7.5, a:0, state:'sleep', speed:.95, anger:0, lastSeen:0, growl:0 };
+  const keys = Object.create(null);
+  let audio, last = performance.now(), bob = 0, prompt = null, mapOpen = false, started = false, noteTimer = 0, shake = 0;
+  const notes = [
+    {x:3.4,y:12.4,t:'Записка охранника: «Если оно рядом — не беги. Оно слышит ритм паники лучше сирены». '},
+    {x:20.5,y:7.5,t:'Ключ от выхода лежит в архиве. Но архив открывается только после запуска генератора.'},
+    {x:4.5,y:3.5,t:'Склад батареек: свет спасает, но свет и выдаёт тебя в длинном коридоре.'}
+  ];
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) {
+    const c = raw[y][x];
+    if (c === 'D') { doors.push({x:x+.5,y:y+.5,open:0,target:0,locked:false}); map[y][x] = 2; }
+    if (c === 'F') items.push({x:x+.5,y:y+.5,type:'fuse',taken:false});
+    if (c === 'B') items.push({x:x+.5,y:y+.5,type:'battery',taken:false});
+    if (c === 'K') items.push({x:x+.5,y:y+.5,type:'key',taken:false,locked:true});
+    if (c === 'G') decals.push({x:x+.5,y:y+.5,type:'generator'});
+    if (c === 'E') decals.push({x:x+.5,y:y+.5,type:'exit'});
+    if (c === 'N') decals.push({x:x+.5,y:y+.5,type:'locker'});
+  }
+  function resize(){ canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+  addEventListener('resize', resize); resize();
+  function initAudio(){
+    if (audio) return;
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    const master = audio.createGain(); master.gain.value = .18; master.connect(audio.destination);
+    audio.master = master;
+    function drone(){
+      const o = audio.createOscillator(), g = audio.createGain(), f = audio.createBiquadFilter();
+      o.type='sawtooth'; o.frequency.value=38; f.type='lowpass'; f.frequency.value=120; g.gain.value=.16;
+      o.connect(f); f.connect(g); g.connect(master); o.start(); audio.droneGain = g;
+    }
+    drone();
+  }
+  function beep(freq=220, dur=.08, type='sine', vol=.25){
+    if(!audio) return; const o=audio.createOscillator(), g=audio.createGain();
+    o.type=type; o.frequency.value=freq; g.gain.value=vol; g.gain.exponentialRampToValueAtTime(.001, audio.currentTime+dur);
+    o.connect(g); g.connect(audio.master); o.start(); o.stop(audio.currentTime+dur);
+  }
+  function showNote(t, ms=4200){ noteEl.textContent=t; noteEl.classList.add('show'); noteTimer=ms/1000; }
+  function cell(x,y){ if(x<0||y<0||x>=W||y>=H) return 1; return map[Math.floor(y)][Math.floor(x)]; }
+  function doorAt(x,y){ return doors.find(d => Math.floor(d.x)===Math.floor(x) && Math.floor(d.y)===Math.floor(y)); }
+  function blocked(x,y){ const c=cell(x,y); if(c===1) return true; if(c===2){ const d=doorAt(x,y); return !d || d.open < .72; } return false; }
+  function cast(angle, max=22){
+    let sin=Math.sin(angle), cos=Math.cos(angle), step=.025, dist=0, hit=0, hx=player.x, hy=player.y, shade=1, door=false;
+    while(dist<max){ hx=player.x+cos*dist; hy=player.y+sin*dist; const c=cell(hx,hy); if(c===1 || c===2){ if(c===2){ const d=doorAt(hx,hy); if(d && d.open>.68){ dist+=step; continue; } door=true; } hit=c; const fx=hx-Math.floor(hx), fy=hy-Math.floor(hy); shade=(fx<.04||fx>.96)? .72 : (fy<.04||fy>.96? .95:.82); break; } dist+=step; }
+    return {dist, hit, x:hx, y:hy, shade, door};
+  }
+  function lineClear(ax,ay,bx,by){ const dx=bx-ax, dy=by-ay, n=Math.ceil(Math.hypot(dx,dy)*18); for(let i=1;i<n;i++){ const t=i/n; if(blocked(ax+dx*t, ay+dy*t)) return false; } return true; }
+  function interact(){
+    if(!prompt) return; const p = prompt;
+    if(p.kind==='door'){ p.obj.target = p.obj.target>0 ? 0 : 1; beep(p.obj.target?140:90,.13,'triangle'); monster.anger += p.obj.target ? 14 : 4; }
+    if(p.kind==='item'){
+      if(p.obj.type==='key' && !player.generator){ showNote('Архивный контейнер заклинил: электромагнитный замок требует питание генератора.'); return; }
+      p.obj.taken=true; if(p.obj.type==='fuse'){ player.fuses++; showNote(`Предохранитель найден (${player.fuses}/3). Вернись к щитку генератора.`); beep(520,.12,'sine'); }
+      if(p.obj.type==='battery'){ player.battery=Math.min(100, player.battery+45); showNote('Батареи фонаря пополнены.'); beep(620,.1,'sine'); }
+      if(p.obj.type==='key'){ player.hasKey=true; showNote('Ключ выхода взят. Главные двери ждут тебя в восточном крыле.'); beep(740,.15,'sine'); monster.anger+=28; }
+    }
+    if(p.kind==='generator'){
+      if(player.fuses<3){ showNote(`В щитке не хватает предохранителей: ${player.fuses}/3.`); return; }
+      if(!player.generator){ player.generator=true; showNote('Генератор ожил. Где-то щёлкнул замок архива... и что-то проснулось окончательно.'); beep(80,.45,'sawtooth',.45); monster.state='hunt'; monster.anger+=70; }
+    }
+    if(p.kind==='exit'){
+      if(!player.generator) return showNote('Главные двери держит аварийная блокировка. Нужен генератор.');
+      if(!player.hasKey) return showNote('Нужен ключ выхода из архива.');
+      win();
+    }
+    if(p.kind==='note') showNote(p.obj.t);
+  }
+  function update(dt){
+    if(!started || player.dead || player.won) return;
+    const sprint = keys.ShiftLeft || keys.ShiftRight;
+    let speed = (sprint && player.stamina>2) ? 3.15 : 1.75;
+    let mx=0,my=0; if(keys.KeyW) {mx+=Math.cos(player.a); my+=Math.sin(player.a);} if(keys.KeyS){mx-=Math.cos(player.a); my-=Math.sin(player.a);} if(keys.KeyA){mx+=Math.cos(player.a-Math.PI/2); my+=Math.sin(player.a-Math.PI/2);} if(keys.KeyD){mx+=Math.cos(player.a+Math.PI/2); my+=Math.sin(player.a+Math.PI/2);} const moving=Math.hypot(mx,my)>0;
+    if(moving){ const len=Math.hypot(mx,my); mx/=len; my/=len; const nx=player.x+mx*speed*dt, ny=player.y+my*speed*dt; if(!blocked(nx,player.y)) player.x=nx; if(!blocked(player.x,ny)) player.y=ny; bob += dt * speed * (sprint?7:4); monster.anger += sprint ? dt*9 : dt*1.4; player.stamina += sprint ? -dt*23 : dt*13; } else player.stamina += dt*18;
+    player.stamina=Math.max(0,Math.min(100,player.stamina));
+    if(keys.KeyF && !keys._fLatch){ keys._fLatch=true; keys.flash=!keys.flash; beep(keys.flash?500:230,.06); }
+    if(!keys.KeyF) keys._fLatch=false;
+    if(keys.KeyM && !keys._mLatch){ keys._mLatch=true; mapOpen=!mapOpen; }
+    if(!keys.KeyM) keys._mLatch=false;
+    if(keys.flash){ player.battery=Math.max(0, player.battery-dt*3.4); if(player.battery<=0) keys.flash=false; }
+    for(const d of doors) d.open += (d.target-d.open)*Math.min(1,dt*4.2);
+    noteTimer-=dt; if(noteTimer<=0) noteEl.classList.remove('show');
+    updateMonster(dt, moving, sprint);
+    findPrompt();
+    healthEl.style.width=player.hp+'%'; staminaEl.style.width=player.stamina+'%'; batteryEl.style.width=player.battery+'%';
+    statsEl.innerHTML = `предохранители: ${player.fuses}/3<br>генератор: ${player.generator?'включён':'мёртв'}<br>ключ: ${player.hasKey?'есть':'нет'}<br>фонарь: ${keys.flash?'вкл':'выкл'}`;
+  }
+  function updateMonster(dt, moving, sprint){
+    const dist=Math.hypot(player.x-monster.x, player.y-monster.y), sees=dist<8 && lineClear(monster.x,monster.y,player.x,player.y);
+    if(sees){ monster.lastSeen=2.8; monster.anger += dt*(keys.flash?18:9); monster.state='hunt'; }
+    monster.lastSeen-=dt; monster.anger=Math.max(0, Math.min(140, monster.anger-dt*2));
+    let target={x:player.x,y:player.y}; if(!sees && monster.lastSeen<=0 && monster.anger<35){ monster.state='wander'; const t=performance.now()/2600; target={x:11.5+Math.cos(t)*7,y:9+Math.sin(t*.7)*5}; }
+    const dx=target.x-monster.x, dy=target.y-monster.y, len=Math.hypot(dx,dy)||1; monster.a=Math.atan2(dy,dx);
+    const sp=(monster.state==='hunt'? (1.25+monster.anger/95) : .55) * (player.generator?1.12:1);
+    const nx=monster.x+dx/len*sp*dt, ny=monster.y+dy/len*sp*dt; if(!blocked(nx,monster.y)) monster.x=nx; if(!blocked(monster.x,ny)) monster.y=ny;
+    if(dist<1.05){ player.hp -= dt*(34 + monster.anger*.18); shake=.45; if(player.hp<=0) lose(); }
+    if(dist<3.2 && audio){ monster.growl-=dt; if(monster.growl<=0){ monster.growl=.9; beep(55+Math.random()*30,.35,'sawtooth',.55); } }
+    if(audio && audio.droneGain) audio.droneGain.gain.value=.12 + Math.max(0, 3.6-dist)*.07;
+  }
+  function findPrompt(){
+    prompt=null; const ahead={x:player.x+Math.cos(player.a)*1.05,y:player.y+Math.sin(player.a)*1.05};
+    const d=doorAt(ahead.x,ahead.y); if(d && Math.hypot(player.x-d.x, player.y-d.y)<1.45) prompt={kind:'door',obj:d,text:d.target?'[E] закрыть дверь':'[E] открыть дверь'};
+    for(const it of items){ if(it.taken) continue; const ds=Math.hypot(player.x-it.x,player.y-it.y); if(ds<1.15) prompt={kind:'item',obj:it,text:it.type==='fuse'?'[E] взять предохранитель':it.type==='battery'?'[E] взять батареи':'[E] взять ключ выхода'}; }
+    for(const de of decals){ const ds=Math.hypot(player.x-de.x,player.y-de.y); if(ds<1.25) prompt={kind:de.type,obj:de,text:de.type==='generator'?'[E] щиток генератора':de.type==='exit'?'[E] главные двери':'[E] шкафчик'}; }
+    for(const n of notes){ const ds=Math.hypot(player.x-n.x,player.y-n.y); if(ds<1.05) prompt={kind:'note',obj:n,text:'[E] прочитать записку'}; }
+    if(prompt){ promptEl.textContent=prompt.text; promptEl.classList.add('show'); } else promptEl.classList.remove('show');
+  }
+  function render(){
+    const sw=innerWidth, sh=innerHeight; ctx.clearRect(0,0,sw,sh);
+    const grad=ctx.createLinearGradient(0,0,0,sh); grad.addColorStop(0,'#050711'); grad.addColorStop(.48,'#0b0c10'); grad.addColorStop(.5,'#17130f'); grad.addColorStop(1,'#030201'); ctx.fillStyle=grad; ctx.fillRect(0,0,sw,sh);
+    const fov=Math.PI/3.05, rays=Math.max(240, Math.floor(sw/3)); const colW=sw/rays; const flashlight=keys.flash && player.battery>0;
+    for(let i=0;i<rays;i++){
+      const camera=(i/rays-.5), ang=player.a+camera*fov, r=cast(ang), corrected=r.dist*Math.cos(camera*fov); let wallH=Math.min(sh*2, sh/(corrected*.82)); const x=i*colW, y=(sh-wallH)/2 + Math.sin(bob)*4;
+      const center=1-Math.min(1,Math.abs(camera)*2.2), light=flashlight?(0.65+center*1.4):.32, fog=Math.max(0,1-corrected/15)*light; const base=r.door?[96,54,30]:[72,76,82];
+      const flicker=.88+Math.sin(performance.now()/78+i)*.04+(player.generator?Math.sin(performance.now()/210)*.06:0);
+      ctx.fillStyle=`rgb(${base[0]*fog*r.shade*flicker},${base[1]*fog*r.shade*flicker},${base[2]*fog*r.shade*flicker})`; ctx.fillRect(x,y,colW+1,wallH);
+      ctx.fillStyle=`rgba(0,0,0,${Math.min(.88, corrected/12)})`; ctx.fillRect(x,y,colW+1,wallH);
+      if(r.door){ ctx.fillStyle=`rgba(20,5,0,${.35*fog})`; ctx.fillRect(x+colW*.45,y+wallH*.18,Math.max(1,colW*.12),wallH*.64); }
+    }
+    renderSprites(sw,sh,fov); if(mapOpen) renderMap(); if(shake>0){ ctx.fillStyle=`rgba(120,0,10,${shake*.18})`; ctx.fillRect(0,0,sw,sh); shake-=.03; }
+    requestAnimationFrame(loop);
+  }
+  function project(obj, fov){ const dx=obj.x-player.x, dy=obj.y-player.y, dist=Math.hypot(dx,dy); let ang=Math.atan2(dy,dx)-player.a; while(ang<-Math.PI)ang+=Math.PI*2; while(ang>Math.PI)ang-=Math.PI*2; return {dist, ang, sx:(.5+ang/fov)*innerWidth}; }
+  function renderSprites(sw,sh,fov){
+    const sprites=[]; for(const it of items) if(!it.taken) sprites.push({...it, sprite:it.type}); for(const d of decals) sprites.push({...d, sprite:d.type}); sprites.push({x:monster.x,y:monster.y,sprite:'monster'}); sprites.sort((a,b)=>project(b,fov).dist-project(a,fov).dist);
+    for(const s of sprites){ const p=project(s,fov); if(Math.abs(p.ang)>fov*.62 || p.dist>.2 && !lineClear(player.x,player.y,s.x,s.y)) continue; const size=Math.min(sh, sh/(p.dist*.9)); const x=p.sx-size/2, y=sh/2-size/2+Math.sin(bob+p.dist)*3; const alpha=Math.max(0,1-p.dist/13)*(keys.flash?1.15:.55); ctx.globalAlpha=alpha;
+      if(s.sprite==='monster'){ const h=size*1.45; ctx.fillStyle='#050005'; ctx.beginPath(); ctx.ellipse(p.sx, sh/2-h*.02, size*.24, h*.48, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#f4f4f4'; ctx.beginPath(); ctx.arc(p.sx-size*.08, sh/2-h*.19, Math.max(2,size*.025),0,7); ctx.arc(p.sx+size*.08, sh/2-h*.19, Math.max(2,size*.025),0,7); ctx.fill(); ctx.fillStyle='#9d0010'; ctx.fillRect(p.sx-size*.12, sh/2+h*.06, size*.24, Math.max(2,size*.025)); }
+      else { ctx.fillStyle=s.sprite==='fuse'?'#ffd866':s.sprite==='battery'?'#65f08b':s.sprite==='key'?'#d6e9ff':s.sprite==='generator'?'#31415a':s.sprite==='exit'?'#5f1018':'#b7a174'; ctx.fillRect(x+size*.35,y+size*.35,size*.3,size*.3); ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.strokeRect(x+size*.35,y+size*.35,size*.3,size*.3); }
+      ctx.globalAlpha=1;
+    }
+  }
+  function renderMap(){ const scale=10, pad=18; ctx.save(); ctx.globalAlpha=.85; ctx.fillStyle='rgba(0,0,0,.72)'; ctx.fillRect(pad,pad,W*scale,H*scale); for(let y=0;y<H;y++)for(let x=0;x<W;x++){ if(map[y][x]===1) ctx.fillStyle='#aeb4bd'; else if(map[y][x]===2) ctx.fillStyle='#7d472a'; else ctx.fillStyle='#151923'; ctx.fillRect(pad+x*scale,pad+y*scale,scale-1,scale-1); } ctx.fillStyle='#5df'; ctx.beginPath(); ctx.arc(pad+player.x*scale,pad+player.y*scale,3,0,7); ctx.fill(); ctx.fillStyle='#e11'; ctx.beginPath(); ctx.arc(pad+monster.x*scale,pad+monster.y*scale,3,0,7); ctx.fill(); ctx.restore(); }
+  function loop(now){ const dt=Math.min(.05,(now-last)/1000); last=now; update(dt); render(); }
+  function lose(){ player.dead=true; jumpEl.style.display='grid'; beep(36,.8,'sawtooth',.8); setTimeout(()=>{ jumpEl.style.display='none'; endEl.style.display='grid'; document.getElementById('endTitle').textContent='Тебя нашли'; document.getElementById('endText').textContent='Корпус снова тихий. Только камеры записали, как дверь сама закрылась за тобой.'; },950); }
+  function win(){ player.won=true; endEl.style.display='grid'; document.getElementById('endTitle').textContent='Ты выбрался'; document.getElementById('endText').textContent='За спиной гаснет свет. Но ключ в твоей руке всё ещё тёплый — будто кто-то держал его вместе с тобой.'; }
+  addEventListener('keydown', e=>{ keys[e.code]=true; if(e.code==='KeyE') interact(); }); addEventListener('keyup', e=>{ keys[e.code]=false; });
+  canvas.addEventListener('click',()=>{ if(started) canvas.requestPointerLock(); }); document.addEventListener('mousemove', e=>{ if(document.pointerLockElement===canvas) player.a += e.movementX*.0025; });
+  document.getElementById('startBtn').addEventListener('click',()=>{ initAudio(); started=true; keys.flash=true; startEl.style.display='none'; canvas.requestPointerLock(); showNote('Найди 3 предохранителя. Монстр далеко, но шум быстро меняет это.',5200); last=performance.now(); });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
